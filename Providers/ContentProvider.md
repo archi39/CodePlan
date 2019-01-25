@@ -42,6 +42,24 @@
 
 ## onCreate()
 В этом методе нам необходимо проинициализировать наше хранилище данных (в моем случае создать БД). 
+```kotlin
+override fun onCreate(): Boolean {
+        dbHelper = DBHelper(context)
+        return true
+    }
+
+ private class DBHelperCP(context: Context?) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+        override fun onCreate(db: SQLiteDatabase?) {
+            //TABLE_CREATE - SQLite скрипт создающий БД
+            db!!.execSQL(TABLE_CREATE)
+        }
+
+        override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
+            //Здесь указывается код обнавляющий архитектуру БД
+        }
+
+    }
+```
 >Система Android вызывает этот метод сразу после создания вашего поставщика.
 
 >Избегайте слишком длинных операций в методе onCreate(). Отложите выполнение задач инициализации до тех пор, пока они не потребуются. Дополнительные сведения об этом представлены в разделе [Реализация метода onCreate](https://developer.android.com/guide/topics/providers/content-provider-creating?hl=ru#OnCreate).
@@ -61,4 +79,37 @@
 ## getType
 Возвращает MIME тип данных - нужно чтобы дать понять другим приложениям данные какого типа возвращает наш **ContentProvider** - если приложение возвращает какие то специфические данные, не советую с этим заморачиваться, если у тебя возникла потребность использовать MIME типы то ты и так знаешь что делаешь😁 [статья про MIME типы в ContentProvider](https://developer.android.com/guide/topics/providers/content-provider-creating?hl=ru#MIMETypes)
 
-PS: Будь акуратней с использованием `NotNull` переменных в `Kotlin`, я потратил около 6 часов на поиск ошибки в query **ContentProvider** оказалось дело было в NotNull переменной 
+```kotlin
+//константы определяющие MIME типы
+companion object {
+    const val USER_CONTENT_TYPE = "vnd.android.cursor.dir/vnd.$AUTHORITY.$PATH"
+    const val USER_CONTENT_ITEM_TYPE = "vnd.android.cursor.item/vnd.$AUTHORITY.$PATH"
+}
+```
+
+## ContentProvider для нескольких таблиц
+Разумеется мы можем использовать **ContentProvider** более чем для 1 таблицы ([Вот отличная статья о том как это сделать на StackOverflow](https://stackoverflow.com/questions/3814005/best-practices-for-exposing-multiple-tables-using-content-providers-in-android))
+
+Для этого нам необходимо в нашем классе ***MyContentProvider*** определить URI обоих таблиц
+
+```kotlin
+val USER_CONTENT_URI: Uri = Uri.parse("content://$AUTHORITY/$PATH_1")
+val USER_CONTENT_URI: Uri = Uri.parse("content://$AUTHORITY/$PATH_2")
+```
+а также указать все возможные сценарии (константы) для **UriMatcher**
+```kotlin
+private val URI_PATH_1 = 101
+private val URI_PATH_1_ID = 102
+private val URI_PATH_2 = 201
+private val URI_PATH_2_ID = 202
+private val uriMatcher: UriMatcher = UriMatcher(UriMatcher.NO_MATCH)
+    init {
+        uriMatcher.addURI(AUTHORITY, PATH_1, URI_PATH_1)
+        uriMatcher.addURI(AUTHORITY, "$PATH_1/#", URI_PATH_1_ID)
+        uriMatcher.addURI(AUTHORITY, PATH_2, URI_PATH_2)
+        uriMatcher.addURI(AUTHORITY, "$PATH_2/#", URI_PATH_2_ID)
+    }
+```
+И не забыть прописать все switch/case для разных сценариев
+
+### PS: Будь акуратней с использованием `NotNull` переменных в `Kotlin`, я потратил около 6 часов на поиск ошибки в query **ContentProvider** оказалось дело было в NotNull переменной 
