@@ -5,3 +5,10 @@
 В статье "[Создание поставщика контента](https://developer.android.com/guide/topics/providers/content-provider-creating?hl=ru)" от Google Developers рекомендуется не использовать ContentProvider в ряде случаев:
 >Вам не нужен поставщик для работы с базой данных SQLite, если ее планируется использовать исключительно в вашем приложении.
 
+Итак чтобы использовать ContentProvider нам необходимо определиться с его идентификатором и способом хранения данных (да, это не обязательно должна быть БД), т.к. ContentProvider штука используемая для взаимодействия разных приложений необходимо обеспечить уникальность его идентификатора, рекомендуется использовать имя пакета. например `com.example.appname.provider`
+Далее следует прописать наш provider в файле манифеста
+```xml
+<provider
+    android:authorities="com.dogvscat.monday.provider"
+    android:name=".service.UsersContentProvider" />
+```
