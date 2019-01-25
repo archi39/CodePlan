@@ -26,19 +26,19 @@
  * Пример на Kotlin
  */
 //Объявляем константы которые должен вернуть UriMatcher
- val URI_USERS = 1
- val URI_USERS_ID = 2
+ val URI_PATH = 1
+ val URI_PATH_ID = 2
  val uriMatcher: UriMatcher = UriMatcher(UriMatcher.NO_MATCH)
     init {
-//Здесь USER_PATH - имя таблицы
-        uriMatcher.addURI(AUTHORITY, USER_PATH, URI_USERS)
-        uriMatcher.addURI(AUTHORITY, "$USER_PATH/#", URI_USERS_ID)
+//Здесь PATH - имя таблицы
+        uriMatcher.addURI(AUTHORITY, PATH, URI_PATH)
+        uriMatcher.addURI(AUTHORITY, "$PATH/#", URI_PATH_ID)
     }
 ```
 В примере указанном выше используется символ **#** - это символ подствновки указывающий, что на его месте возможно любое целое число, также допускется использовать символ **"*"**, который укажет на любую последовательность символов (как в регулярном выражении)
 >Метод addURI() сопоставляет идентификатор **ContentProvider** и имя талицы с целочисленным значением. 
 
-Использовать UriMatcher необходимо в реализациях методов **ContentProvider** для нашего **CustomContentProvider**, где в зависимости от передаваемого URI, UriMatcher вернет константу (*Метод match() возвращает целочисленное значение для URI*) и нам останется включить switch/case и обратотать разные сценарии
+Использовать UriMatcher необходимо в реализациях методов **ContentProvider** для нашего ***MyContentProvider***, где в зависимости от передаваемого URI, UriMatcher вернет константу (*Метод match() возвращает целочисленное значение для URI*) и нам останется включить switch/case и обратотать разные сценарии
 
 ## onCreate()
 В этом методе нам необходимо проинициализировать наше хранилище данных (в моем случае создать БД). 
@@ -65,7 +65,59 @@ override fun onCreate(): Boolean {
 >Избегайте слишком длинных операций в методе onCreate(). Отложите выполнение задач инициализации до тех пор, пока они не потребуются. Дополнительные сведения об этом представлены в разделе [Реализация метода onCreate](https://developer.android.com/guide/topics/providers/content-provider-creating?hl=ru#OnCreate).
 
 ## query
-Запрос в БД. Возвращает данные в виде объекта Cursor.
+Запрос в БД. Возвращает данные в виде объекта Cursor. Ниже приведу пример использования switch/case **UriMatcher** 
+```kotlin
+/**
+ * Пример на Kotlin
+ */
+override fun query(
+        uri: Uri,
+        projection: Array<String>?,
+        selection: String?,
+        selectionArgs: Array<String>?,
+        sortOrder: String?
+    ): Cursor? {
+//эти переменные необходимы, т.к переменные selection и sortOrder передаются в формате val и не могут быть
+//отредактированы
+        var cursorSelection: String = ""
+        var cursorSortOrder: String = ""
+
+//функция .match(uri) сравнивает uri с одним из описанных в UriMatcher сценариев и возвращает
+//соответстующую константу
+        when (uriMatcher.match(uri)) {
+            URI_PATH -> {
+//делаем что то со всеми данными таблицы, например можем указать сортировку
+            }
+            URI_PATH_ID -> {
+                val id = uri.lastPathSegment
+//добавляем ID к условию выборки
+                if (TextUtils.isEmpty(selection)){
+                    cursorSelection = "$PATH_ID = $id"
+                } else {
+                    cursorSelection = "$selection AND $PATH_ID = $id"
+                }
+            }
+            else -> {
+//если нам передали URI который не подходит ни под один сценарий, значит его нет в нашем ContentProvider
+                throw IllegalArgumentException("Wrong URI: $uri")
+            }
+        }
+
+//Теперь подготавливаем Cursor для наших данных - в моём случае создаем его на основе запроса в БД
+        val cursor: Cursor = dbHelper.writableDatabase.query(TABLE_USERS,
+            projection,
+            cursorSelection,
+            selectionArgs,
+            null,
+            null,
+            cursorSortOrder)
+
+//просим ContentResolver уведомлять курсор об изменениях данных в USER_CONTENT_URI
+//это позволит нам перерисовывать оперативно обновлять данные в activity без дополнительных запросов в БД
+        cursor.setNotificationUri(context!!.contentResolver, USER_CONTENT_URI)
+        return cursor
+    }
+```
 
 ## insert
 Вставка записи в БД. Возвращает URI контента для новой вставленной строки.
